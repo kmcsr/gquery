@@ -307,10 +307,17 @@ func readAttributes(r io.RuneScanner, nd Node)(_ bool, err error){
 	}
 }
 
-func isSimpleNodeName(id string)(bool){
-	switch id {
-		case "br", "hr", "meta", "link": return true
-	}
-	return false
+var simpleNodeMap = map[string]struct{}{
+	"br": struct{}{},
+	"hr": struct{}{},
+	"meta": struct{}{},
+	"link": struct{}{},
+	"input": struct{}{},
+	"img": struct{}{},
+}
+
+func isSimpleNodeName(id string)(ok bool){
+	_, ok = simpleNodeMap[id]
+	return
 }
 
