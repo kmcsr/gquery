@@ -28,6 +28,7 @@ type Node interface{
 	RemoveChild(Node)
 	FindFunc(func(Node)(bool))([]Node)
 	Find(string)([]Node)
+	ForeachAllChildren(func(n Node))
 	setParent(Node)
 	Parent()(Node)
 	setBefore(Node)
@@ -245,6 +246,17 @@ func (*Node0)FindFunc(func(c Node)(bool))([]Node){
 
 func (*Node0)Find(string)([]Node){
 	panic("Simple node don't have any children")
+}
+
+func (n *Node0)ForeachAllChildren(call func(n Node)){
+	if n.ins.HasChildren() {
+		n.ins.GetNodeList().ForEach(func(c Node, _ int){
+			call(c)
+			if !c.IsSimple() {
+				c.ForeachAllChildren(call)
+			}
+		})
+	}
 }
 
 func (n *Node0)setParent(o Node){
