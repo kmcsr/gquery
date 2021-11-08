@@ -29,6 +29,7 @@ type Node interface{
 	FindFunc(func(Node)(bool))([]Node)
 	Find(string)([]Node)
 	ForEachAllChildren(func(n Node))
+	StandardizedTexts()
 	setParent(Node)
 	Parent()(Node)
 	setBefore(Node)
@@ -190,7 +191,7 @@ func NewNode0(ins Node)(Node0){
 }
 
 func (*Node0)IsSimple()(bool){
-	return false
+	return true
 }
 
 func (*Node0)HasAttr(k string)(bool){
@@ -248,11 +249,14 @@ func (*Node0)Find(string)([]Node){
 	panic("Simple node don't have any children")
 }
 
+func (*Node0)StandardizedTexts(){
+}
+
 func (n *Node0)ForEachAllChildren(call func(n Node)){
 	if n.ins.HasChildren() {
 		n.ins.GetNodeList().ForEach(func(c Node, _ int){
 			call(c)
-			if !c.IsSimple() {
+			if c.HasChildren() {
 				c.ForEachAllChildren(call)
 			}
 		})
@@ -379,6 +383,10 @@ func NewParentNode0(ins Node)(ParentNode0){
 	}
 }
 
+func (n *ParentNode0)IsSimple()(bool){
+	return false
+}
+
 func (n *ParentNode0)GetText()(str string){
 	str = ""
 	n.children.ForEach(func(n Node, _ int){
@@ -437,7 +445,7 @@ func (n *ParentNode0)FindFunc(call func(c Node)(bool))(children []Node){
 		if n.Name()[0] != '#' && call(n) {
 			children = append(children, n)
 		}
-		if !n.IsSimple() {
+		if n.HasChildren() {
 			children = append(children, n.FindFunc(call)...)
 		}
 	})
@@ -473,6 +481,14 @@ func (n *ParentNode0)Find(pattern_ string)(children []Node){
 		}
 	}
 	return n.FindFunc(call)
+}
+
+func (n *ParentNode0)StandardizedTexts(){
+	n.children.ForEach(func(c Node, _ int){
+		if c.HasChildren() {
+			c.StandardizedTexts()
+		}
+	})
 }
 
 func (n *ParentNode0)ContentWriteTo(w io.Writer)(written int64, err error){
