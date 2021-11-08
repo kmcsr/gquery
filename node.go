@@ -2,8 +2,12 @@
 package gquery
 
 import (
+	io "io"
 	strings "strings"
+	regexp "regexp"
 )
+
+var empty_re = regexp.MustCompile(`\s+`)
 
 type Node interface{
 	Name()(string)
@@ -30,12 +34,14 @@ type Node interface{
 	Before()(Node)
 	setAfter(Node)
 	After()(Node)
+	WriteTo(w io.Writer)(written int64, err error)
 	String()(string)
 }
 
 type NodeList struct{
 	head Node
 	tail Node
+	ins Node
 }
 
 func (l *NodeList)Clear(){
@@ -50,10 +56,19 @@ func (l *NodeList)Parent()(Node){
 	return l.head.Parent()
 }
 
+func (l *NodeList)First()(Node){
+	return l.head
+}
+
+func (l *NodeList)Last()(Node){
+	return l.tail
+}
+
 func (l *NodeList)Append(n Node){
 	if p := n.Parent(); p != nil {
 		p.RemoveChild(n)
 	}
+	n.setParent(l.ins)
 	if l.tail == nil {
 		l.head = n
 		l.tail = n
@@ -93,13 +108,18 @@ func (l *NodeList)Insert(n Node, t Node){ // after t
 		p.RemoveChild(n)
 	}
 	if t == nil {
-		n.setAfter(l.head)
+		if l.head == nil {
+			l.tail = n
+		}else{
+			n.setAfter(l.head)
+		}
 		l.head = n
 		return
 	}
 	if t.Parent() != l.Parent(){
 		panic("The target node not in this node list")
 	}
+	n.setParent(l.Parent())
 	n.setAfter(t.After())
 	t.setAfter(n)
 	if n.After() == nil {
@@ -341,7 +361,9 @@ type ParentNode0 struct{
 func NewParentNode0(ins Node)(ParentNode0){
 	return ParentNode0{
 		AttrNode0: NewAttrNode0(ins),
-		children: &NodeList{},
+		children: &NodeList{
+			ins: ins,
+		},
 	}
 }
 
@@ -350,6 +372,14 @@ func (n *ParentNode0)GetText()(str string){
 	n.children.ForEach(func(n Node, _ int){
 		str += n.GetText()
 	})
+	if IsBlockNodeName(n.ins.Name()) && len(str) > 0 {
+		if str[0] != '\r' && str[0] != '\n' {
+			str = "\n" + str
+		}
+		if str[len(str) - 1] != '\r' && str[len(str) - 1] != '\n' {
+			str += "\n"
+		}
+	}
 	return
 }
 
@@ -375,7 +405,6 @@ func (n *ParentNode0)AppendChild(o Node){
 		p = p.Parent()
 	}
 	n.children.Append(o)
-	o.setParent(n.ins)
 }
 
 func (n *ParentNode0)RemoveChild(o Node){
@@ -415,15 +444,13 @@ func (n *ParentNode0)Find(pattern_ string)(children []Node){
 		case ptn[0] == '#':
 			idpt := ptn[1:]
 			call = func(c Node)(bool){
-				return c.HasAttr("id") && strInStrlist(idpt, empty_re.Split(c.GetAttr("id"), -1)) && c0(c)
+				return c.HasAttr("id") && strInList(idpt, sortStrings(empty_re.Split(c.GetAttr("id"), -1))) && c0(c)
 			}
 		case ptn[0] == '.':
 			clspt := ptn[1:]
 			call = func(c Node)(bool){
-				return c.HasAttr("class") && strInStrlist(clspt, empty_re.Split(c.GetAttr("class"), -1)) && c0(c)
+				return c.HasAttr("class") && strInList(clspt,sortStrings( empty_re.Split(c.GetAttr("class"), -1))) && c0(c)
 			}
-		case ptn[0] == '[':
-			//
 		case ptn[0] == '*':
 			//
 		default:
@@ -436,11 +463,61 @@ func (n *ParentNode0)Find(pattern_ string)(children []Node){
 	return n.FindFunc(call)
 }
 
+func (n *ParentNode0)ContentWriteTo(w io.Writer)(written int64, err error){
+	var n0 int64
+	written = 0
+	iter := n.children.Iter()
+	for {
+		nd, ok := iter()
+		if !ok { break }
+		n0, err = nd.WriteTo(w)
+		written += n0
+		if err != nil { return }
+	}
+	return
+}
+
 func (n *ParentNode0)ContentString()(str string){
 	str = ""
 	n.children.ForEach(func(n Node, _ int){
 		str += n.String()
 	})
 	return
+}
+
+func FindPrevNodeFunc(n Node, call func(c Node)(bool))(c Node){
+	c = n.Before()
+	if c == nil {
+		return
+	}
+	for c != nil && !call(c) {
+		c = c.Before()
+	}
+	return
+}
+
+func FindNextNodeFunc(n Node, call func(c Node)(bool))(c Node){
+	c = n.After()
+	if c == nil {
+		return
+	}
+	for c != nil && !call(c) {
+		c = c.After()
+	}
+	return
+}
+
+func FindPrevNodeExcepts(n Node, xs ...string)(c Node){
+	sortStrings(xs)
+	return FindPrevNodeFunc(n, func(c Node)(bool){
+		return !strInList(c.Name(), xs)
+	})
+}
+
+func FindNextNodeExcepts(n Node, xs ...string)(c Node){
+	sortStrings(xs)
+	return FindNextNodeFunc(n, func(c Node)(bool){
+		return !strInList(c.Name(), xs)
+	})
 }
 

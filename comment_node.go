@@ -1,6 +1,10 @@
 
 package gquery
 
+import (
+	io "io"
+)
+
 type Comment struct{
 	Node0
 	content string
@@ -35,6 +39,20 @@ func (n *Comment)GetValue()(string){
 
 func (n *Comment)SetValue(t string){
 	n.content = t
+}
+
+func (n *Comment)WriteTo(w io.Writer)(written int64, err error){
+	var n0 int
+	n0, err = w.Write(([]byte)("<!--"))
+	written = (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(n.content))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)("-->"))
+	written += (int64)(n0)
+	if err != nil { return }
+	return
 }
 
 func (n *Comment)String()(string){

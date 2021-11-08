@@ -2,22 +2,21 @@
 package gquery
 
 import (
+	io "io"
 	strings "strings"
 )
 
 type Document struct{
-	Node0
-	doctype *DocType
-	content *HtmlNode
+	ParentNode0
 }
 
 func NewDocumentNode()(p *Document){
 	p = &Document{}
-	p.Node0 = NewNode0(p)
+	p.ParentNode0 = NewParentNode0(p)
 	return
 }
 
-func (p *Document)Name()(string){
+func (*Document)Name()(string){
 	return "#document"
 }
 
@@ -46,11 +45,11 @@ func (*Document)Attrs()(map[string]string){
 }
 
 func (n *Document)GetText()(string){
-	return n.content.GetText()
+	return n.GetHtmlNode().GetText()
 }
 
 func (n *Document)SetText(t string){
-	n.content.SetText(t)
+	n.GetHtmlNode().SetText(t)
 }
 
 func (n *Document)setParent(p Node){
@@ -58,68 +57,43 @@ func (n *Document)setParent(p Node){
 }
 
 func (n *Document)GetDocType()(*DocType){
-	return n.doctype
+	if dt, ok := n.children.First().(*DocType); ok {
+		return dt
+	}
+	return nil
 }
 
 func (n *Document)SetDocType(t *DocType){
-	if n.doctype != nil {
-		n.doctype.setParent(nil)
+	if dt := n.GetDocType(); dt != nil {
+		n.RemoveChild(dt)
 	}
-	n.doctype = t
 	if t != nil {
-		t.setParent(n)
-		if n.content != nil {
-			t.setAfter(n.content)
-		}
+		n.InsertChild(t, nil)
 	}
 }
 
 func (n *Document)GetHtmlNode()(*HtmlNode){
-	return n.content
+	if ht, ok := n.children.Last().(*HtmlNode); ok {
+		return ht
+	}
+	return nil
 }
 
 func (n *Document)SetHtmlNode(h *HtmlNode){
-	if n.content != nil {
-		n.content.setParent(nil)
+	if ht := n.GetHtmlNode(); ht != nil {
+		n.RemoveChild(ht)
 	}
-	n.content = h
 	if h != nil {
-		h.setParent(n)
-		if n.doctype != nil {
-			h.setBefore(n.doctype)
-		}
+		n.AppendChild(h)
 	}
 }
 
-func (n *Document)GetNodeList()(*NodeList){
-	panic("Document node cannot operate children")
+func (n *Document)WriteTo(w io.Writer)(written int64, err error){
+	return n.ContentWriteTo(w)
 }
 
-func (n *Document)AppendChild(o Node){
-	panic("Document node cannot operate children")
-}
-
-func (n *Document)RemoveChild(o Node){
-	panic("Document node cannot operate children")
-}
-
-func (n *Document)InsertChild(o Node, _t ...Node){
-	panic("Document node cannot operate children")
-}
-
-func (n *Document)Find(pattern string)([]Node){
-	return n.content.Find(pattern)
-}
-
-func (p *Document)String()(str string){
-	str = ""
-	if p.doctype != nil {
-		str += p.doctype.String()
-	}
-	if p.content != nil {
-		str += p.content.String()
-	}
-	return
+func (n *Document)String()(str string){
+	return n.ContentString()
 }
 
 type DocType struct{
@@ -163,14 +137,29 @@ func (n *DocType)SetValue(t string){
 func (n *DocType)setParent(p Node){
 	if p != nil {
 		if _, ok := p.(*Document); !ok {
-			panic("DocType Node's parent must be Document")
+			panic("DocType's parent must be Document")
 		}
+	}
+	n.Node0.setParent(p)
+}
+
+func (n *DocType)setBefore(p Node){
+	if p != nil {
+		panic("DocType must be first of NodeList")
 	}
 	n.Node0.setParent(p)
 }
 
 func (n *DocType)Extras()(*[]string){
 	return &(n.extras)
+}
+
+func (n *DocType)WriteTo(w io.Writer)(written int64, err error){
+	var n0 int
+	n0, err = w.Write(([]byte)(n.String()))
+	written = (int64)(n0)
+	if err != nil { return }
+	return
 }
 
 func (n *DocType)String()(str string){
@@ -203,6 +192,37 @@ func (n *HtmlNode)setParent(p Node){
 		}
 	}
 	n.ParentNode0.setParent(p)
+}
+
+func (n *HtmlNode)setAfter(p Node){
+	if p != nil {
+		panic("HtmlNode must be last of NodeList")
+	}
+	n.ParentNode0.setParent(p)
+}
+
+func (n *HtmlNode)WriteTo(w io.Writer)(written int64, err error){
+	var (
+		n0 int
+		n1 int64
+	)
+	written = 0
+	n0, err = w.Write(([]byte)("<html"))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(n.AttrString()))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(">"))
+	written += (int64)(n0)
+	if err != nil { return }
+	n1, err = n.ContentWriteTo(w)
+	written += n1
+	if err != nil { return }
+	n0, err = w.Write(([]byte)("</html>"))
+	written += (int64)(n0)
+	if err != nil { return }
+	return
 }
 
 func (p *HtmlNode)String()(str string){
@@ -239,6 +259,30 @@ func (p *HeadNode)GetText()(string){
 	return ""
 }
 
+func (n *HeadNode)WriteTo(w io.Writer)(written int64, err error){
+	var (
+		n0 int
+		n1 int64
+	)
+	written = 0
+	n0, err = w.Write(([]byte)("<head"))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(n.AttrString()))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(">"))
+	written += (int64)(n0)
+	if err != nil { return }
+	n1, err = n.ContentWriteTo(w)
+	written += n1
+	if err != nil { return }
+	n0, err = w.Write(([]byte)("</head>"))
+	written += (int64)(n0)
+	if err != nil { return }
+	return
+}
+
 func (p *HeadNode)String()(str string){
 	return "<head" + p.AttrString() + ">" + p.ContentString() + "</head>"
 }
@@ -264,6 +308,30 @@ func (n *BodyNode)setParent(p Node){
 		}
 	}
 	n.ParentNode0.setParent(p)
+}
+
+func (n *BodyNode)WriteTo(w io.Writer)(written int64, err error){
+	var (
+		n0 int
+		n1 int64
+	)
+	written = 0
+	n0, err = w.Write(([]byte)("<body"))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(n.AttrString()))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(">"))
+	written += (int64)(n0)
+	if err != nil { return }
+	n1, err = n.ContentWriteTo(w)
+	written += n1
+	if err != nil { return }
+	n0, err = w.Write(([]byte)("</body>"))
+	written += (int64)(n0)
+	if err != nil { return }
+	return
 }
 
 func (p *BodyNode)String()(str string){

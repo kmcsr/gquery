@@ -2,6 +2,7 @@
 package gquery
 
 import (
+	io "io"
 	strings "strings"
 )
 
@@ -10,20 +11,44 @@ type Span struct{
 	id string
 }
 
-func NewSpanNode(id string)(p *Span){
-	p = &Span{
+func NewSpanNode(id string)(n *Span){
+	n = &Span{
 		id: strings.ToLower(id),
 	}
-	p.ParentNode0 = NewParentNode0(p)
+	n.ParentNode0 = NewParentNode0(n)
 	return
 }
 
-func (p *Span)Name()(string){
-	return p.id
+func (n *Span)Name()(string){
+	return n.id
 }
 
-func (p *Span)String()(str string){
-	return "<" + p.id + p.AttrString() + ">" + p.ContentString() + "</" + p.id + ">"
+func (n *Span)WriteTo(w io.Writer)(written int64, err error){
+	var (
+		n0 int
+		n1 int64
+	)
+	written = 0
+	n0, err = w.Write(([]byte)("<" + n.id))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(n.AttrString()))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(">"))
+	written += (int64)(n0)
+	if err != nil { return }
+	n1, err = n.ContentWriteTo(w)
+	written += n1
+	if err != nil { return }
+	n0, err = w.Write(([]byte)("</" + n.id + ">"))
+	written += (int64)(n0)
+	if err != nil { return }
+	return
+}
+
+func (n *Span)String()(str string){
+	return "<" + n.id + n.AttrString() + ">" + n.ContentString() + "</" + n.id + ">"
 }
 
 type SimpleSpan struct{
@@ -31,20 +56,20 @@ type SimpleSpan struct{
 	id string
 }
 
-func NewSimpleSpanNode(id string)(p *SimpleSpan){
-	p = &SimpleSpan{
+func NewSimpleSpanNode(id string)(n *SimpleSpan){
+	n = &SimpleSpan{
 		id: strings.ToLower(id),
 	}
-	p.AttrNode0 = NewAttrNode0(p)
+	n.AttrNode0 = NewAttrNode0(n)
 	return
 }
 
-func (p *SimpleSpan)IsSimple()(bool){
+func (*SimpleSpan)IsSimple()(bool){
 	return true
 }
 
-func (p *SimpleSpan)Name()(string){
-	return p.id
+func (n *SimpleSpan)Name()(string){
+	return n.id
 }
 
 func (n *SimpleSpan)GetText()(string){
@@ -54,8 +79,23 @@ func (n *SimpleSpan)GetText()(string){
 func (n *SimpleSpan)SetText(t string){
 }
 
-func (p *SimpleSpan)String()(str string){
-	return "<" + p.id + p.AttrString() + "/>"
+func (n *SimpleSpan)WriteTo(w io.Writer)(written int64, err error){
+	var n0 int
+	written = 0
+	n0, err = w.Write(([]byte)("<" + n.id))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(n.AttrString()))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)("/>"))
+	written += (int64)(n0)
+	if err != nil { return }
+	return
+}
+
+func (n *SimpleSpan)String()(str string){
+	return "<" + n.id + n.AttrString() + "/>"
 }
 
 var (

@@ -3,14 +3,86 @@ package gquery
 
 import (
 	io "io"
+	os "os"
+	bytes "bytes"
 	unicode "unicode"
-	regexp "regexp"
+	utf8 "unicode/utf8"
 	sort "sort"
+	errors "errors"
 )
 
 type RuneSeekScanner interface{
 	io.ReadSeeker
 	io.RuneScanner
+}
+
+type osFileWrapper struct{
+	*os.File
+	lastRuneLen int
+}
+
+func newOsFileWrapper(fd *os.File)(*osFileWrapper){
+	return &osFileWrapper{
+		File: fd,
+		lastRuneLen: -1,
+	}
+}
+
+func (fd *osFileWrapper)ReadRune()(r rune, i int, err error){
+	fd.lastRuneLen = -1
+	buf := make([]byte, utf8.UTFMax)
+	i = 1
+	_, err = fd.Read(buf[:i])
+	if err != nil { return }
+	if !utf8.RuneStart(buf[0]) {
+		r = utf8.RuneError
+		return
+	}
+	for ; !utf8.Valid(buf[:i]) ; i++{
+		if i >= utf8.UTFMax {
+			r = utf8.RuneError
+			return
+		}
+		_, err = fd.Read(buf[i:i + 1])
+		if err != nil { return }
+	}
+	r, _ = utf8.DecodeRune(buf)
+	fd.lastRuneLen = i
+	return
+}
+
+func (fd *osFileWrapper)UnreadRune()(err error){
+	if fd.lastRuneLen < 0 {
+		return errors.New("gquery.osFileWrapper.UnreadRune: previous operation was not ReadRune")
+	}
+	_, err = fd.Seek((int64)(-fd.lastRuneLen), io.SeekCurrent)
+	return
+}
+
+var (
+	_ RuneSeekScanner = (*bytes.Reader)(nil)
+	_ RuneSeekScanner = (*osFileWrapper)(nil)
+)
+
+func openFileToSeekScanner(path string)(s RuneSeekScanner, err error){
+	var (
+		fd *os.File
+		info os.FileInfo
+	)
+	fd, err = os.Open(path)
+	if err != nil { return }
+	defer func(){ if fd != nil { fd.Close() } }()
+	info, err = fd.Stat()
+	if err == nil && info.Size() < 256 * 1024 { // < 256KB
+		var bts []byte
+		bts, err = io.ReadAll(fd)
+		if err != nil { return }
+		s = bytes.NewReader(bts)
+	}else{
+		s = newOsFileWrapper(fd)
+		fd = nil
+	}
+	return
 }
 
 func skipWhites(r io.RuneScanner)(err error){
@@ -102,17 +174,50 @@ func readString(r io.RuneScanner)(_ string, err error){
 	return (string)(str), nil
 }
 
-var empty_re = regexp.MustCompile(`\s+`)
+func emptyString(str string)(bool){
+	for _, c := range str {
+		if !unicode.IsSpace(c) {
+			return false
+		}
+	}
+	return true
+}
 
-func zipString(str string)(string){
-	if len(str) == 0 {
-		return str
+func standardizedText(str string)(string){
+	if emptyString(str) {
+		return ""
 	}
 	return empty_re.ReplaceAllString(str, " ")
 }
 
-func strInStrlist(str string, list []string)(bool){
+func sortStrings(list []string)([]string){
 	sort.Strings(list)
+	return list
+}
+
+func asSortStrings(list ...string)([]string){
+	return sortStrings(list)
+}
+
+func strInList(str string, list []string)(bool){
 	i := sort.SearchStrings(list, str)
-	return list[i] == str
+	return -1 < i && i < len(list) && list[i] == str
+}
+
+var simpleNodeList = asSortStrings(
+	"br", "hr",
+	"meta", "link",
+	"input", "img",
+)
+
+var blockNodeList = asSortStrings(
+	"div", "p",
+)
+
+func IsSimpleNodeName(id string)(ok bool){
+	return strInList(id, simpleNodeList)
+}
+
+func IsBlockNodeName(id string)(ok bool){
+	return strInList(id, blockNodeList)
 }

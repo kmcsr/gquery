@@ -32,9 +32,15 @@ func (n *EndNode)GetText()(string){
 func (n *EndNode)SetText(t string){
 }
 
+func (p *EndNode)WriteTo(io.Writer)(int64, error){
+	return 0, nil
+}
+
 func (p *EndNode)String()(str string){
 	return ""
 }
+
+var _ Node = (*EndNode)(nil)
 
 type unexpectEndNode struct{
 	node *EndNode
@@ -54,9 +60,6 @@ func (e *unexpectEndNode)GetNode()(*EndNode){
 	return e.node
 }
 
-
-var _ RuneSeekScanner = (*bytes.Reader)(nil)
-
 func DecodeDocString(str string)(doc *Document, err error){
 	return DecodeDoc(strings.NewReader(str))
 }
@@ -65,30 +68,30 @@ func DecodeDocBytes(bts []byte)(doc *Document, err error){
 	return DecodeDoc(bytes.NewReader(bts))
 }
 
+func DecodeFile(path string)(doc *Document, err error){
+	var r RuneSeekScanner
+	r, err = openFileToSeekScanner(path)
+	if err != nil { return }
+	if c, ok := r.(io.Closer); ok {
+		defer c.Close()
+	}
+	return DecodeDoc(r)
+}
+
 func DecodeDoc(r RuneSeekScanner)(doc *Document, err error){
 	doc = NewDocumentNode()
 	var (
 		n Node
-		ok bool = true
 	)
-	for ok {
+	for {
 		n, err = DecodeNode(r)
 		if err != nil { return }
-		ok = n.Name() == "#comment" || n.Name() == "#text"
-	}
-	if dtn, ok := n.(*DocType); ok {
-		doc.SetDocType(dtn)
-		for ok {
-			n, err = DecodeNode(r)
-			if err != nil { return }
-			ok = n.Name() == "#comment" || n.Name() == "#text"
+		doc.AppendChild(n)
+		if _, ok := n.(*HtmlNode); ok {
+			break
 		}
 	}
-	if hn, ok := n.(*HtmlNode); ok {
-		doc.SetHtmlNode(hn)
-		return
-	}
-	return nil, fmt.Errorf("Unexpected node: (%s)%s", n.Name(), n.String())
+	return
 }
 
 func DecodeNode(r RuneSeekScanner)(nd Node, err error){
@@ -192,8 +195,13 @@ func DecodeNode(r RuneSeekScanner)(nd Node, err error){
 				nd.SetValue((string)(rbf))
 			}
 			return
+		case "br":
+			nd = NewBrNode()
+			_, err = readAttributes(r, nd)
+			if err != nil { return }
+			return
 		default:
-			if isSimpleNodeName(id) {
+			if IsSimpleNodeName(id) {
 				nd = NewSimpleSpanNode(id)
 				_, err = readAttributes(r, nd)
 				if err != nil { return }
@@ -215,7 +223,7 @@ func DecodeNode(r RuneSeekScanner)(nd Node, err error){
 				nd2, err = DecodeNode(r)
 				if err != nil { return }
 				if nd2a, ok := nd2.(*EndNode); ok {
-					if !isSimpleNodeName(nd2a.Name()) {
+					if !IsSimpleNodeName(nd2a.Name()) {
 						if nd2a.Name() != id {
 							err = newUnexpectEndNode(nd2a)
 						}
@@ -306,18 +314,3 @@ func readAttributes(r io.RuneScanner, nd Node)(_ bool, err error){
 		}
 	}
 }
-
-var simpleNodeMap = map[string]struct{}{
-	"br": struct{}{},
-	"hr": struct{}{},
-	"meta": struct{}{},
-	"link": struct{}{},
-	"input": struct{}{},
-	"img": struct{}{},
-}
-
-func isSimpleNodeName(id string)(ok bool){
-	_, ok = simpleNodeMap[id]
-	return
-}
-

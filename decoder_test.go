@@ -1,19 +1,10 @@
 
-package gquery
+package gquery_test
 
 import (
-	io "io"
-	bytes "bytes"
 	testing "testing"
+	gquery "github.com/kmcsr/gquery"
 )
-
-func TestReadToStr(t *testing.T){
-	r := bytes.NewReader(([]byte)("abcd文efgo28y</script中hh 00</script>abcdefxx"))
-	data, err := readToStr(r, "</script>")
-	t.Log("read:", (string)(data), err)
-	buf, err := io.ReadAll(r)
-	t.Log("lose:", (string)(buf), err)
-}
 
 func TestDecodeDoc(t *testing.T){
 	str := `<!DOCTYPE html>
@@ -26,10 +17,10 @@ func TestDecodeDoc(t *testing.T){
 	<body>
 		<div id="body">
 			Hello Sir <br/>
-			testtext testtext  testtext   testtext    testtext    testtext	testtext		testtext			testtext
+			<p>testtext testtext  testtext   testtext</p>    testtext    testtext	<span>testtext		testtext</span>			testtext
 			testtext
 
-			testtext
+			<p>testtext</p>
 		</div>
 		<script type="text/javascript" src="./jquery-3.6.0.min.js"></script>
 		<script type="text/javascript" src="./index.js"></script>
@@ -45,7 +36,7 @@ func TestDecodeDoc(t *testing.T){
 </html>
 `
 	t.Log("decoding:", str)
-	doc, err := DecodeDocString(str)
+	doc, err := gquery.DecodeDocString(str)
 	if err != nil {
 		t.Fatal("decode error:", err)
 	}

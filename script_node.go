@@ -2,6 +2,7 @@
 package gquery
 
 import (
+	io "io"
 	strings "strings"
 )
 
@@ -39,6 +40,27 @@ func (n *Script)GetValue()(string){
 
 func (n *Script)SetValue(t string){
 	n.content = t
+}
+
+func (n *Script)WriteTo(w io.Writer)(written int64, err error){
+	var n0 int
+	written = 0
+	n0, err = w.Write(([]byte)("<script"))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(n.AttrString()))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(">"))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(n.content))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)("</script>"))
+	written += (int64)(n0)
+	if err != nil { return }
+	return
 }
 
 func (n *Script)String()(string){
@@ -79,6 +101,27 @@ func (n *Style)GetValue()(string){
 
 func (n *Style)SetValue(t string){
 	n.content = t
+}
+
+func (n *Style)WriteTo(w io.Writer)(written int64, err error){
+	var n0 int
+	written = 0
+	n0, err = w.Write(([]byte)("<style"))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(n.AttrString()))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(">"))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)(n.content))
+	written += (int64)(n0)
+	if err != nil { return }
+	n0, err = w.Write(([]byte)("</style>"))
+	written += (int64)(n0)
+	if err != nil { return }
+	return
 }
 
 func (n *Style)String()(string){

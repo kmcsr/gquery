@@ -1,8 +1,9 @@
 
-package gquery
+package gquery_test
 
 import (
 	testing "testing"
+	. "github.com/kmcsr/gquery"
 )
 
 func TestTextNode(t *testing.T){
@@ -14,21 +15,6 @@ func TestTextNode(t *testing.T){
 	}
 	if !text.IsSimple() {
 		t.Fatalf("Text node must be simple")
-	}
-	node2 := NewTextNode("")
-	t.Log("text.setBefore(node2)")
-	text.setBefore(node2)
-	if text.Before() != node2 {
-		t.Errorf("text.Before() != node2, %#v", text.Before())
-	}
-	if text.After() != nil {
-		t.Errorf("text.After() != nil")
-	}
-	if node2.Before() != nil {
-		t.Errorf("node2.Before() != nil")
-	}
-	if node2.After() != text {
-		t.Errorf("node2.After() != text, %#v", node2.After())
 	}
 	if text.String() != tt {
 		t.Errorf(`text.String() == "%s", want "%s"`, text.String(), tt)
@@ -58,21 +44,6 @@ func TestCommentNode(t *testing.T){
 	common := NewCommentNode(tt)
 	if common.Name() != "#comment" {
 		t.Fatalf(`common.Name() == "%s", want "%s"`, common.Name(), "#comment")
-	}
-	node2 := NewCommentNode("")
-	t.Log("common.setBefore(node2)")
-	common.setBefore(node2)
-	if common.Before() != node2 {
-		t.Errorf("common.Before() != node2, %#v", common.Before())
-	}
-	if common.After() != nil {
-		t.Errorf("common.After() != nil")
-	}
-	if node2.Before() != nil {
-		t.Errorf("node2.Before() != nil")
-	}
-	if node2.After() != common {
-		t.Errorf("node2.After() != common, %#v", node2.After())
 	}
 	if common.String() != "<!--" + tt + "-->" {
 		t.Errorf(`common.String() == "%s", want %s`, common.String(), "<!--" + tt + "-->")
