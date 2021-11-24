@@ -28,7 +28,7 @@ type Node interface{
 	RemoveChild(Node)
 	FindFunc(func(Node)(bool))([]Node)
 	Find(string)([]Node)
-	ForEachAllChildren(func(n Node))
+	IterAllChildren(func(n Node))
 	StandardizedTexts()
 	setParent(Node)
 	Parent()(Node)
@@ -252,14 +252,21 @@ func (*Node0)Find(string)([]Node){
 func (*Node0)StandardizedTexts(){
 }
 
-func (n *Node0)ForEachAllChildren(call func(n Node)){
+func (n *Node0)IterAllChildren(call func(n Node)){
 	if n.ins.HasChildren() {
-		n.ins.GetNodeList().ForEach(func(c Node, _ int){
-			call(c)
+		iter := n.ins.GetNodeList().Iter()
+		var (
+			c Node
+			ok bool
+		)
+		for {
+			c, ok = iter()
+			if !ok { break }
 			if c.HasChildren() {
-				c.ForEachAllChildren(call)
+				c.IterAllChildren(call)
 			}
-		})
+			call(c)
+		}
 	}
 }
 

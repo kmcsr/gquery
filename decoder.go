@@ -239,7 +239,7 @@ func DecodeNode(r RuneSeekScanner)(nd Node, err error){
 	err = r.UnreadRune()
 	if err != nil { return }
 	rbf, err = readToByte(r, '<')
-	if err != nil { return }
+	if err != nil && err != io.EOF { return }
 	err = r.UnreadRune()
 	if err != nil { return }
 	nd = NewTextNode()
